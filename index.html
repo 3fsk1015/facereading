@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나의 관상 결과</title>
+<meta property="og:title" content="AI 관상 결과">
+<meta property="og:description" content="로봇이 봐준 나의 관상을 확인해 보세요">
+<style>
+  :root { --bg:#0A0A0A; --text:#FFFFFF; --sub:#CCCCCC; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:24px 16px 48px; }
+  #card { display:block; width:100%; height:auto; border-radius:16px; border:1px solid #333333; }
+  .hint { text-align:center; color:var(--sub); font-size:14px; margin:12px 0 0; }
+  .buttons { display:flex; flex-direction:column; gap:10px; margin-top:20px; }
+  button { border:0; border-radius:12px; padding:16px; font-size:17px; font-weight:bold; cursor:pointer; }
+  #btnKakao { background:#FEE500; color:#191919; }
+  #btnShare { background:#1976D2; color:#FFFFFF; }
+  #btnSave  { background:#388E3C; color:#FFFFFF; }
+  #btnCopy  { background:#333333; color:#FFFFFF; }
+  .error { text-align:center; color:var(--sub); margin-top:40vh; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="result" class="hidden">
+    <img id="card" alt="">
+    <p class="hint">이미지를 길게 누르면 사진첩에 저장할 수 있어요</p>
+    <div class="buttons">
+      <button id="btnKakao" class="hidden">카카오톡으로 공유</button>
+      <button id="btnShare" class="hidden">이미지 공유하기 (카카오톡 등)</button>
+      <button id="btnSave">이미지 저장</button>
+      <button id="btnCopy">결과 텍스트 복사</button>
+    </div>
+  </div>
+  <p id="error" class="error hidden">결과를 불러올 수 없습니다.<br>QR 코드를 다시 스캔해 주세요.</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<!-- 카카오톡 공유 버튼을 쓰려면 Kakao Developers 의 JavaScript 키를 넣고, 이 페이지 도메인을 앱 설정 > 플랫폼 > Web 에 등록 -->
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
+<script>
+  var KAKAO_JS_KEY = ''; // 예: 'abcd1234...'. 비워두면 카카오 버튼 대신 기본 공유 버튼만 표시
+
+  var FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
+
+  function decodeResult(hash) {
+    var b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(pako.inflateRaw(bytes, { to: 'string' }));
+  }
+
+  // 한글은 띄어쓰기 단위로 줄바꿈, 한 단어가 너무 길면 글자 단위로 자름
+  function wrapText(ctx, text, maxWidth) {
+    var lines = [];
+    text.split('\n').forEach(function (para) {
+      var line = '';
+      para.split(' ').forEach(function (word) {
+        var test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width <= maxWidth) { line = test; return; }
+        if (line) lines.push(line);
+        line = '';
+        Array.from(word).forEach(function (ch) {
+          if (ctx.measureText(line + ch).width > maxWidth && line) { lines.push(line); line = ''; }
+          line += ch;
+        });
+      });
+      lines.push(line);
+    });
+    return lines;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // 로봇 결과 화면과 같은 색 구성(검정 배경 / 흰 제목 / 노란 재미요소)으로 결과 카드 이미지 생성
+  function drawCard(data) {
+    var W = 1080, PAD = 80, inner = W - PAD * 2;
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+
+    // 1) 줄 수를 먼저 재서 전체 높이 계산
+    var titleFont = 'bold 68px ' + FONT, sumFont = '40px ' + FONT, funFont = 'bold 40px ' + FONT;
+    ctx.font = titleFont; var titleLines = wrapText(ctx, data.t, inner);
+    ctx.font = sumFont;   var sumLines = wrapText(ctx, data.s || '', inner);
+    ctx.font = funFont;   var funLines = data.f ? wrapText(ctx, data.f, inner - 80) : [];
+
+    var titleLH = 92, sumLH = 64, funLH = 64;
+    var funBoxH = funLines.length ? funLines.length * funLH + 80 : 0;
+    var H = 110 + 60 + titleLines.length * titleLH + 70 + sumLines.length * sumLH
+            + (funBoxH ? 60 + funBoxH : 0) + 140;
+    canvas.width = W; canvas.height = H;
+
+    // 2) 그리기
+    ctx.fillStyle = '#0A0A0A'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+    var y = 110;
+    ctx.font = '34px ' + FONT; ctx.fillStyle = '#AAAAAA';
+    ctx.fillText('AI 관상 결과', W / 2, y);
+    y += 60;
+
+    ctx.font = titleFont; ctx.fillStyle = '#FFFFFF';
+    titleLines.forEach(function (l) { y += titleLH / 2; ctx.fillText(l, W / 2, y); y += titleLH / 2; });
+
+    y += 32; ctx.fillRect(W / 2 - 80, y, 160, 6); y += 38;
+
+    ctx.font = sumFont; ctx.fillStyle = '#EEEEEE';
+    sumLines.forEach(function (l) { y += sumLH / 2; ctx.fillText(l, W / 2, y); y += sumLH / 2; });
+
+    if (funBoxH) {
+      y += 60;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      roundRect(ctx, PAD, y, inner, funBoxH, 24); ctx.fill();
+      ctx.font = funFont; ctx.fillStyle = '#FFEB3B';
+      var fy = y + 40;
+      funLines.forEach(function (l) { fy += funLH / 2; ctx.fillText(l, W / 2, fy); fy += funLH / 2; });
+      y += funBoxH;
+    }
+
+    ctx.font = '28px ' + FONT; ctx.fillStyle = '#666666';
+    ctx.fillText('재미로 보는 AI 관상', W / 2, H - 70);
+
+    return canvas;
+  }
+
+  function canvasToFile(canvas) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        resolve(new File([blob], 'gwansang_result.png', { type: 'image/png' }));
+      }, 'image/png');
+    });
+  }
+
+  var data = null;
+  try { data = decodeResult(location.hash.slice(1)); } catch (e) { data = null; }
+
+  if (!data || !data.t) {
+    document.getElementById('error').classList.remove('hidden');
+  } else {
+    var shareText = '[AI 관상 결과] ' + data.t + '\n\n' + (data.s || '') + '\n\n' + (data.f || '');
+    var shareUrl = location.href;
+
+    // 시스템 글꼴 로딩 후 그려야 글자가 깨지지 않음
+    var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    ready.then(function () {
+      var canvas = drawCard(data);
+      var dataUrl = canvas.toDataURL('image/png');
+      var img = document.getElementById('card');
+      img.src = dataUrl;
+      img.alt = shareText;
+      document.getElementById('result').classList.remove('hidden');
+
+      canvasToFile(canvas).then(function (file) {
+        // 1) 기본 공유 시트로 이미지 전송 (안드로이드 크롬 / 아이폰 사파리, 앱 키 불필요)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          var btnShare = document.getElementById('btnShare');
+          btnShare.classList.remove('hidden');
+          btnShare.onclick = function () {
+            navigator.share({ files: [file], title: '나의 관상 결과' }).catch(function () {});
+          };
+        }
+
+        // 2) 카카오톡 공유 버튼: 이미지를 카카오 서버에 올린 뒤 피드 메시지로 전송
+        if (KAKAO_JS_KEY && window.Kakao) {
+          Kakao.init(KAKAO_JS_KEY);
+          var btnKakao = document.getElementById('btnKakao');
+          btnKakao.classList.remove('hidden');
+          btnKakao.onclick = function () {
+            Kakao.Share.uploadImage({ file: [file] }).then(function (res) {
+              Kakao.Share.sendDefault({
+                objectType: 'feed',
+                content: {
+                  title: '[AI 관상 결과] ' + data.t,
+                  description: (data.f || '').split('\n')[0],
+                  imageUrl: res.infos.original.url,
+                  imageWidth: canvas.width,
+                  imageHeight: canvas.height,
+                  link: { mobileWebUrl: shareUrl, webUrl: shareUrl }
+                },
+                buttons: [{ title: '결과 자세히 보기', link: { mobileWebUrl: shareUrl, webUrl: shareUrl } }]
+              });
+            }).catch(function () { alert('이미지 업로드에 실패했습니다. 다른 공유 방법을 이용해 주세요.'); });
+          };
+        }
+      });
+
+      // 3) 이미지 저장 (공유가 안 되는 브라우저 대비)
+      document.getElementById('btnSave').onclick = function () {
+        var a = document.createElement('a');
+        a.href = dataUrl; a.download = 'gwansang_result.png';
+        document.body.appendChild(a); a.click(); a.remove();
+      };
+    });
+
+    document.getElementById('btnCopy').onclick = function () {
+      var done = function () { alert('복사되었습니다. 카카오톡에 붙여넣기 하세요.'); };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText + '\n' + shareUrl).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = shareText + '\n' + shareUrl;
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done();
+      }
+    };
+  }
+</script>
+</body>
+</html>
