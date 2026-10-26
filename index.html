@@ -145,8 +145,13 @@
     });
   }
 
+  // 이모지 표시 지정 문자(U+FE0F) 제거: ☁️·❤️ 처럼 이 문자가 붙은 이모지가 있는 줄을
+  // 아이폰 사파리 캔버스가 폭 0으로 계산해 가운데 정렬이 깨지고(줄이 화면 중앙에서 시작) 오른쪽으로 넘침 (2026-10-08 확인)
+  function cleanText(s) { return (s || '').replace(/️/g, ''); }
+
   var data = null;
   try { data = decodeResult(location.hash.slice(1)); } catch (e) { data = null; }
+  if (data) { data.t = cleanText(data.t); data.s = cleanText(data.s); data.f = cleanText(data.f); }
 
   if (!data || !data.t) {
     document.getElementById('error').classList.remove('hidden');
