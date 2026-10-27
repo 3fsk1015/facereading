@@ -21,11 +21,15 @@
   #btnSave  { background:#388E3C; color:#FFFFFF; }
   #btnCopy  { background:#333333; color:#FFFFFF; }
   .error { text-align:center; color:var(--sub); margin-top:40vh; }
+  /* 좌측 상단 회사 로고 마크 (로봇 앱 화면처럼 바탕 없이 마크만) */
+  .brand { margin-bottom:16px; }
+  .brand img { height:36px; width:auto; display:block; }
   .hidden { display:none; }
 </style>
 </head>
 <body>
 <main>
+  <div class="brand"><img id="logo" alt="아비만 로보틱스"></div>
   <div id="result" class="hidden">
     <img id="card" alt="">
     <p class="hint">이미지를 길게 누르면 사진첩에 저장할 수 있어요</p>
@@ -46,6 +50,19 @@
   var KAKAO_JS_KEY = ''; // 예: 'abcd1234...'. 비워두면 카카오 버튼 대신 기본 공유 버튼만 표시
 
   var FONT = '-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
+  // 회사 로고 (앱 ic_logo.png 를 그대로 넣음. 파일 하나만 올리면 되도록 페이지 안에 포함)
+  var LOGO_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAI4AAAB3CAYAAADVYHjZAAAACXBIWXMAAC4jAAAuIwF4pT92AAAFCElEQVR4nO2dPXLbSBCFX29tLqWMRJ7APgCrVls4gHUD8QZSzsBwwFw+geEbyAdgmariAeQTwIqYyicYBxhv4LVEotGYP7wvceBCY6r0aR6A6RmJcw6E9OWv2AMgeUJxiAqKQ1RQHKKC4hAVFIeooDhEBcUhKigOUUFxiAqKQ1RQHKKC4hAVFIeooDhEBcUhKigOUUFxiIq/Yw8gBVqp3gI4B4CF2+76XDvbLM8BvB1hWC/xfFjvHwPe74/IVHuOW6nOAdwBuAJw9tt/fwFwd6pEs82yAXBtOb4TeADQHNb7JvB9AUxUnFaqSwD3+L8wv/Nx4ba3p9SMJA8APAFYHdb7XcibTu4Zx8fSVxyXBgBuWqnuTix9i+6HGJoLAF9nm+Uq5E0nJY6Pp/uel934GepVDuv9M7roi8WnkPJMShwANbrf0L6cFFcAdoraltzNNst5iBtNRhw/a9woL3/nZ6tXSeBt5wzdL8foTEYcAM3A60O+cg/hOsSsMwlxWqlq6CIqV67GvkHx4vi3qPexxxGYy7FvULw4GB5ROXL0eWwoRYvjI+pN7HGUSLHiTDSiglGsOIj7Ma54ihSnleoWwD+xx1EyxbVVtFLNEegj2As8GNZKVv7ixEH3FnXKAuYoHNb7S6tas80y2daFoqKKERWOYsTxa0l17HFMhWLEQeSImhpFiNNKdQXgXexxTInsxfER1cQex9TIXhwwoqKQtTi+OYsRFYFsxWFExSVbcaDvHyYGZCnOwP5hYkB24jCi0iA7ccCISoKsFjl9c9aUIuqD8rrvloP4E1ntHW+lekS8VtB/+55kUTLZRBX7h9MiC3HYP5weWYgDvkUlR/Li+OYsi4j6ZlCDeJJ+qzLsH/6Bbltsa1DrVURkN/Y9erLz/94758wORUhaHNitfNcLt/3eSmVQ6iipta7+Gs97EXkCUDvnmqFFk40qw/7hh4Xbco9VxwWATyLyKCLzIYWSFMc4olYGdUrjDYBHEVEf3ZKkOOh2YZpFlEGdEjkDcC8iqgMKkhPHsH+YEXWcCyi3SicljuHKNyPqdK41zztJiQO7t6gVI6oXpx6O+R/JiGMYUV8Wbtv3SNqp0/shOQlxGFHR6f3ZIwlx0L16W0XUs0EdcoTo4hj2DzOiAhJVHEZUvsSecWrY9A8zogITbZHTMKI+JxZRlidy9WGOgE38MVfHLb7qPkHxDWJMnHOXMe4rIjUCdklGiSrD/mFGVCSCi2PYP/yRuw7iEWPGaQxqPIHHtkUlqDiMqHIIJo5vzrJ4kGVEJUDIGafB8GUFRlQiBBHHsH/4ihGVBqOLY9g//GHhtrH/5iXxhJhxGgyPqG8Lt62HD4VYMao4rVQr2ETUyqAGMWQ0cfzKt8WyAiMqQcaccRowooplFHEM+4dXBjXICJiLY9icxYhKmDFmHItdmA+MqLQxFcc3Z10PLMM20AwwE8cworjfOwMsZ5waw1sXud87E0zEMeofZkRlhNWM0xjUYERlxGBxfHMWI2piDBLHqH/418GOJCOGzjiNwRjYBpohanGM+oe53ztTVOIYRtRqYA0SCe2MY/Egy4jKmN7iGPUPM6Iyp5c4Rv3DjKgCyOoPnZGX8SeHzrXXO+d2ve5HcYiG2AcrkUyhOEQFxSEqKA5RQXGICopDVFAcooLiEBUUh6igOEQFxSEqKA5RQXGICopDVFAcooLiEBUUh6igOEQFxSEqfgIsNEtv072BeAAAAABJRU5ErkJggg==';
+  document.getElementById('logo').src = LOGO_SRC;
+
+  // 결과 카드 이미지에도 로고를 그리기 위해 미리 불러옴 (실패해도 로고 없이 카드 생성)
+  function loadLogo() {
+    return new Promise(function (resolve) {
+      var im = new Image();
+      im.onload = function () { resolve(im); };
+      im.onerror = function () { resolve(null); };
+      im.src = LOGO_SRC;
+    });
+  }
 
   function decodeResult(hash) {
     var b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
@@ -87,7 +104,7 @@
   }
 
   // 로봇 결과 화면과 같은 색 구성(검정 배경 / 흰 제목 / 노란 재미요소)으로 결과 카드 이미지 생성
-  function drawCard(data) {
+  function drawCard(data, logo) {
     var W = 1080, PAD = 80, inner = W - PAD * 2;
     var canvas = document.createElement('canvas');
     var ctx = canvas.getContext('2d');
@@ -100,15 +117,22 @@
 
     var titleLH = 92, sumLH = 64, funLH = 64;
     var funBoxH = funLines.length ? funLines.length * funLH + 80 : 0;
-    var H = 110 + 60 + titleLines.length * titleLH + 70 + sumLines.length * sumLH
+    var TOP = 170;   // 로고 아래부터 시작
+    var H = TOP + 60 + titleLines.length * titleLH + 70 + sumLines.length * sumLH
             + (funBoxH ? 60 + funBoxH : 0) + 140;
     canvas.width = W; canvas.height = H;
 
     // 2) 그리기
     ctx.fillStyle = '#0A0A0A'; ctx.fillRect(0, 0, W, H);
+
+    // 좌측 상단 회사 로고 마크 (로봇 앱 화면처럼 바탕 없이 마크만)
+    if (logo) {
+      var lh = 72, lw = Math.round(logo.width * lh / logo.height);
+      ctx.drawImage(logo, 48, 40, lw, lh);
+    }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-    var y = 110;
+    var y = TOP;
     ctx.font = '34px ' + FONT; ctx.fillStyle = '#AAAAAA';
     ctx.fillText('AI 관상 결과', W / 2, y);
     y += 60;
@@ -161,8 +185,8 @@
 
     // 시스템 글꼴 로딩 후 그려야 글자가 깨지지 않음
     var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-    ready.then(function () {
-      var canvas = drawCard(data);
+    Promise.all([ready, loadLogo()]).then(function (r) {
+      var canvas = drawCard(data, r[1]);
       var dataUrl = canvas.toDataURL('image/png');
       var img = document.getElementById('card');
       img.src = dataUrl;
